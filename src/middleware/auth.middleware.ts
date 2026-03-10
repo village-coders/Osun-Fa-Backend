@@ -4,9 +4,11 @@ import { AdminUser } from '../models/AdminUser';
 import { Club } from '../models/Club';
 import { Coach } from '../models/Coach';
 import { Referee } from '../models/Referee';
+import * as core from 'express-serve-static-core';
 
-export interface AuthRequest extends Request {
-    user?: any; // You can type this more strictly later if needed
+export interface AuthRequest extends Request<core.ParamsDictionary, any, any, core.Query> {
+    user?: any;
+    files?: any; // For your multer uploads
 }
 
 export const requireAuth = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {

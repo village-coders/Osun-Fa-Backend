@@ -1,4 +1,9 @@
-import '@tensorflow/tfjs-node'; // CRITICAL: Loads the C++ binary engine
+import * as tf from '@tensorflow/tfjs';
+import '@tensorflow/tfjs-backend-cpu'; // Use CPU backend for greater compatibility
+
+// Initialize the CPU backend
+tf.setBackend('cpu');
+
 import * as faceapi from '@vladmandic/face-api';
 import * as canvas from '@napi-rs/canvas';
 import path from 'path';
@@ -30,13 +35,14 @@ export async function loadFaceModels() {
     if (modelsLoaded) return;
 
     // Ensure this path matches where your .json and .bin files are stored
-    const modelsPath = path.resolve(process.cwd(), 'src', 'face-models');
+    // Using process.cwd() ensures it works both when running from root (ts-node) or dist (node dist/index.js)
+    const modelsPath = path.resolve(process.cwd(), 'public', 'face-models');
 
     try {
         console.log(`DEBUG: Attempting to load models from: ${modelsPath}`);
         if (!fs.existsSync(modelsPath)) {
             // Fallback to relative path if cwd-based fails
-            const fallbackPath = path.join(__dirname, '..', 'face-models');
+            const fallbackPath = path.join(__dirname, '..', '..', 'public', 'face-models');
             console.log(`DEBUG: CWD path failed, trying fallback: ${fallbackPath}`);
             if (!fs.existsSync(fallbackPath)) {
                 throw new Error(`Models directory not found at ${modelsPath} or ${fallbackPath}`);

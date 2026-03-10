@@ -4,6 +4,9 @@ import cors from 'cors';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { v2 as cloudinary } from 'cloudinary';
+import helmet from 'helmet';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
 
 dotenv.config();
 
@@ -24,11 +27,40 @@ import adminRoutes from './routes/admin.routes';
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// Rate Limiting (Basic DDoS protection)
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    limit: 500, // Limit each IP to 500 requests per `window` (here, per 15 minutes).
+    standardHeaders: 'draft-7', // draft-6: `RateLimit-*` headers; draft-7: combined `RateLimit` header
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers.
+    message: 'Too many requests from this IP, please try again later.'
+});
+
 // Middleware
-app.use(cors());
-app.use(morgan("dev"));
+app.use(helmet()); // Set security HTTP headers
+// Note: We might need to adjust helmet settings if it blocks images or cross-origin requests
+app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" })); // Allow images to load in frontend
+
+app.use(compression()); // Compress responses
+app.use(limiter); // Apply rate limiter to all requests
+
+// CORS configuration for production
+const allowedOrigin = process.env.FRONTEND_URL || '*';
+app.use(cors({
+    origin: allowedOrigin,
+    credentials: true,
+}));
+
+// Logging based on environment
+const morganFormat = process.env.NODE_ENV === 'production' ? 'combined' : 'dev';
+app.use(morgan(morganFormat));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static directory correctly to expose downloaded face models
+import path from 'path';
+app.use('/public', express.static(path.join(process.cwd(), 'public')));
 
 // Cloudinary config
 cloudinary.config({

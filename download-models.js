@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
-const modelsDir = path.join(__dirname, 'src', 'face-models');
+const modelsDir = path.join(__dirname, 'public', 'face-models');
 
 if (!fs.existsSync(modelsDir)) {
     fs.mkdirSync(modelsDir, { recursive: true });
