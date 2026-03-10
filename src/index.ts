@@ -79,13 +79,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 // Start Server
-if(process.env.NODE_ENV === 'development') {
-    app.listen(PORT, async () => {
-        await connectDB();
-        console.log(`Server running on port ${PORT}`);
-    });
-}else{
-    connectDB();
-}
-
-module.exports = app;
+app.listen(PORT, async () => {
+    await connectDB();
+    console.log(`Server running on port ${PORT}`);
+});
