@@ -6,9 +6,12 @@ import { Coach } from '../models/Coach';
 import { Referee } from '../models/Referee';
 import * as core from 'express-serve-static-core';
 
-export interface AuthRequest extends Request<core.ParamsDictionary, any, any, core.Query> {
+export interface AuthRequest extends Request {
     user?: any;
-    files?: any; // For your multer uploads
+    files?: any;
+    body: any;
+    params: any;
+    query: any;
 }
 
 export const requireAuth = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
