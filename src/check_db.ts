@@ -8,7 +8,13 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 async function checkCollections() {
     try {
         await mongoose.connect(process.env.MONGO_URI!);
-        const collections = await mongoose.connection.db.listCollections().toArray();
+        
+        const db = mongoose.connection.db;
+        if (!db) {
+            throw new Error('Database connection not established');
+        }
+
+        const collections = await db.listCollections().toArray();
         console.log('Collections in Database:');
         collections.forEach(c => console.log(`- ${c.name}`));
 
@@ -17,9 +23,9 @@ async function checkCollections() {
         if (faceCollections.length > 0) {
             console.log('\nPotential Face-related collections found:');
             for (const coll of faceCollections) {
-                const count = await mongoose.connection.db.collection(coll.name).countDocuments();
+                const count = await db.collection(coll.name).countDocuments();
                 console.log(`- ${coll.name} (Count: ${count})`);
-                const sample = await mongoose.connection.db.collection(coll.name).findOne();
+                const sample = await db.collection(coll.name).findOne();
                 console.log('  Sample:', JSON.stringify(sample, null, 2));
             }
         } else {
