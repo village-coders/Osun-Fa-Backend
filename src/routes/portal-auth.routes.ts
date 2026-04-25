@@ -7,6 +7,7 @@ import { Coach } from '../models/Coach';
 import { Referee } from '../models/Referee';
 import { Model } from 'mongoose';
 import { requireUserAuth, AuthRequest } from '../middleware/auth.middleware';
+import { sendVerificationEmail } from '../utils/email';
 
 const router = express.Router();
 
@@ -61,9 +62,12 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
 
         await newUser.save();
 
-        const verificationUrl = `http://localhost:${process.env.PORT || 4000}/api/portal-auth/verify-email?token=${verificationToken}&role=${role}`;
-        console.log(`[DEV] Verification Link for ${email}: ${verificationUrl}`);
-        // TODO: Integrate actual email sending logic here (SendGrid/Nodemailer)
+        try {
+            await sendVerificationEmail(email, verificationToken, role);
+        } catch (emailError) {
+            console.error('Email Sending Failed:', emailError);
+            // We still registered the user, but they'll need a "resend" option later
+        }
 
         res.status(201).json({ message: 'Registration successful. Please check your email to verify your account.' });
     } catch (error) {
