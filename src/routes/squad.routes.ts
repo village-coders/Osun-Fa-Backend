@@ -50,6 +50,24 @@ router.post('/', requireUserAuth, requireApprovedClub, async (req: AuthRequest, 
 
         const { formation, startingEleven, substitutes, reserves } = req.body;
 
+        // Validate that all players are Approved or Verified
+        const allPlayerIds = [
+            ...startingEleven.map((p: any) => p.player),
+            ...substitutes,
+            ...reserves
+        ].filter(id => id);
+
+        const { Player } = require('../models/Player');
+        const validPlayersCount = await Player.countDocuments({
+            _id: { $in: allPlayerIds },
+            status: { $in: ['Approved', 'Verified'] }
+        });
+
+        if (validPlayersCount !== allPlayerIds.length) {
+            res.status(400).json({ message: 'Only Approved or Verified players can be added to the squad lineup' });
+            return;
+        }
+
         const updatedSquad = await Squad.findOneAndUpdate(
             { clubId: req.user._id },
             {

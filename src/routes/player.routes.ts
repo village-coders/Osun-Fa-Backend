@@ -2,7 +2,8 @@ import express, { Request, Response } from 'express';
 import { Player } from '../models/Player';
 import { upload } from '../middleware/upload.middleware';
 import { requireAuth, requireUserAuth, requireApprovedClub, AuthRequest } from '../middleware/auth.middleware';
-import { detectFaceDescriptor, isDuplicateFace } from '../utils/face-api';
+import { detectFaceDescriptor, isDuplicateFace, runAsyncFaceVerification } from '../utils/face-api';
+import { deleteFromCloudinary } from '../utils/cloudinary';
 
 const router = express.Router();
 
@@ -20,29 +21,15 @@ router.post('/register', upload.any(), async (req: Request, res: Response): Prom
             });
         }
 
-        // 1. Check for facial uniqueness if a passport photo was uploaded
-        if (playerData.passportPhotographUrl) {
-            const descriptor = await detectFaceDescriptor(playerData.passportPhotographUrl);
-
-            if (!descriptor) {
-                res.status(400).json({ message: 'No clear face detected in the passport photograph. Please upload a clear headshot.' });
-                return;
-            }
-
-            // Fetch all players who have a faceDescriptor
-            const existingPlayers = await Player.find({ faceDescriptor: { $exists: true, $not: { $size: 0 } } });
-
-            if (isDuplicateFace(descriptor, existingPlayers)) {
-                res.status(400).json({ message: 'A player with this face is already registered in the system.' });
-                return;
-            }
-
-            // Store the descriptor array for future comparisons
-            playerData.faceDescriptor = Array.from(descriptor);
-        }
-
         const player = new Player(playerData);
         const savedPlayer = await player.save();
+
+        // 1. Trigger background face verification if a photo exists
+        if (savedPlayer.passportPhotographUrl) {
+            runAsyncFaceVerification(savedPlayer).catch(err =>
+                console.error('[Background Verification] Trigger error:', err)
+            );
+        }
 
         res.status(201).json(savedPlayer);
     } catch (error) {
@@ -55,6 +42,7 @@ router.post('/register', upload.any(), async (req: Request, res: Response): Prom
 // @desc    Register a new player from the team portal
 // @access  Private (Team Role - Approved Only)
 router.post('/portal-register', requireUserAuth, requireApprovedClub, upload.any(), async (req: AuthRequest, res: Response): Promise<void> => {
+    const { jerseyNumber } = req.body;
     try {
         if (req.user?.role !== 'team') {
             res.status(403).json({ message: 'Only clubs can register players via the portal' });
@@ -70,25 +58,12 @@ router.post('/portal-register', requireUserAuth, requireApprovedClub, upload.any
             });
         }
 
-        // 1. Check for facial uniqueness if a passport photo was uploaded
-        if (playerData.passportPhotographUrl) {
-            const descriptor = await detectFaceDescriptor(playerData.passportPhotographUrl);
-
-            if (!descriptor) {
-                res.status(400).json({ message: 'No clear face detected in the passport photograph. Please upload a clear headshot.' });
+        if (jerseyNumber) {
+            const existingPlayer = await Player.findOne({ jerseyNumber, clubId: req.user._id, status: { $in: ['Pending', 'Approved', 'Verified'] } });
+            if (existingPlayer) {
+                res.status(400).json({ message: 'Player with this jersey number already exists' });
                 return;
             }
-
-            // Fetch all players who have a faceDescriptor
-            const existingPlayers = await Player.find({ faceDescriptor: { $exists: true, $not: { $size: 0 } } });
-
-            if (isDuplicateFace(descriptor, existingPlayers)) {
-                res.status(400).json({ message: 'A player with this face is already registered in the system.' });
-                return;
-            }
-
-            // Store the descriptor array for future comparisons
-            playerData.faceDescriptor = Array.from(descriptor);
         }
 
         const player = new Player({
@@ -98,6 +73,14 @@ router.post('/portal-register', requireUserAuth, requireApprovedClub, upload.any
         });
 
         const savedPlayer = await player.save();
+
+        // 1. Trigger background face verification if a photo exists
+        if (savedPlayer.passportPhotographUrl) {
+            runAsyncFaceVerification(savedPlayer).catch(err =>
+                console.error('[Background Verification Portal] Trigger error:', err)
+            );
+        }
+
         res.status(201).json(savedPlayer);
     } catch (error) {
         console.error('Portal player registration error:', error);
@@ -168,7 +151,7 @@ router.put('/:id/update-profile', requireUserAuth, requireApprovedClub, async (r
         delete updatedPlayerData.status;
 
         if (updatedPlayerData.jerseyNumber) {
-            const existingPlayer = await Player.findOne({ jerseyNumber: updatedPlayerData.jerseyNumber });
+            const existingPlayer = await Player.findOne({ jerseyNumber: updatedPlayerData.jerseyNumber, clubId: req.user._id, _id: { $ne: req.params.id } });
             if (existingPlayer) {
                 res.status(400).json({ message: 'Player with this jersey number already exists' });
                 return;
@@ -197,8 +180,31 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response): Promise<
             res.status(404).json({ message: 'Player not found' });
             return;
         }
+
+        // Delete associated files from Cloudinary if they exist
+        const fileFields = [
+            'passportPhotographUrl',
+            'birthCertificateUrl',
+            'ninDocumentUrl',
+            'schoolIdUrl',
+            'consentFormUploadUrl',
+            'medicalClearanceUploadUrl'
+        ];
+
+        for (const field of fileFields) {
+            const url = (player as any)[field];
+            if (url) {
+                // We don't necessarily need to await each one if we want it to be faster, 
+                // but for reliability we can await or use Promise.all
+                deleteFromCloudinary(url).catch(err =>
+                    console.error(`[Cleanup] Failed to delete ${field}:`, err)
+                );
+            }
+        }
+
         res.json({ message: 'Player removed' });
     } catch (error) {
+        console.error('Error deleting player:', error);
         res.status(500).json({ message: 'Server Error' });
     }
 });
@@ -214,6 +220,7 @@ router.get('/market', requireUserAuth, async (req: AuthRequest, res: Response): 
         }
 
         const players = await Player.find({
+            status: { $in: ['Approved', 'Verified'] },
             transferStatus: { $in: ['OnMarket', 'Released'] },
             clubId: { $ne: req.user._id } // Don't show club's own players in market
         }).sort({ updatedAt: -1 });
@@ -293,7 +300,7 @@ router.post('/:id/sign', requireUserAuth, async (req: AuthRequest, res: Response
             return;
         }
 
-        const player = await Player.findOne({ _id: req.params.id, transferStatus: 'Released' });
+        const player = await Player.findOne({ _id: req.params.id, transferStatus: 'Released', status: { $in: ['Approved', 'Verified'] } });
 
         if (!player) {
             res.status(404).json({ message: 'Player not available for direct signing' });

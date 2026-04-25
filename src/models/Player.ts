@@ -59,7 +59,7 @@ export interface IPlayer extends Document {
     parentName?: string;
     parentSignature?: string;
 
-    status: 'Pending' | 'Approved' | 'Rejected';
+    status: 'Pending' | 'Approved' | 'Rejected' | 'Verified';
     registrationSeason?: string;
     dataProtectionConsent?: boolean;
     transferStatus: 'None' | 'OnMarket' | 'Released';
@@ -132,7 +132,7 @@ const playerSchema = new Schema<IPlayer>(
         parentName: { type: String },
         parentSignature: { type: String },
 
-        status: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Pending' },
+        status: { type: String, enum: ['Pending', 'Approved', 'Rejected', 'Verified'], default: 'Pending' },
         registrationSeason: { type: String },
         dataProtectionConsent: { type: Boolean, default: false },
         transferStatus: { type: String, enum: ['None', 'OnMarket', 'Released'], default: 'None' },

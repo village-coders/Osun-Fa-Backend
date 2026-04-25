@@ -22,7 +22,19 @@ router.get('/', async (req: Request, res: Response) => {
 // @access  Public
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
     try {
-        const news = await News.findById(req.params.id);
+        let news;
+        const idOrSlug = req.params.id as string;
+
+        // Check if the id is a valid MongoDB ObjectId
+        if (idOrSlug && idOrSlug.match(/^[0-9a-fA-F]{24}$/)) {
+            news = await News.findById(idOrSlug);
+        }
+        
+        // If not found by ID (or not a valid ID), try finding by slug
+        if (!news) {
+            news = await News.findOne({ slug: idOrSlug });
+        }
+
         if (!news) {
             res.status(404).json({ message: 'News not found' });
             return;

@@ -111,7 +111,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 connectDB();
 // Start Server
-app.listen(PORT, () => { 
+app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
 

@@ -1,71 +1,99 @@
-import * as tf from '@tensorflow/tfjs';
-import '@tensorflow/tfjs-backend-cpu'; // Use CPU backend for greater compatibility
+// SHIM: vladmandic/face-api internally requires '@tensorflow/tfjs-node' which is not in our dependencies.
+// We shim require to redirect it to '@tensorflow/tfjs' which we have installed.
+// This must be done BEFORE any other imports that might trigger the internal require.
+const Module = require('module');
+const originalRequire = Module.prototype.require;
+Module.prototype.require = function (id: string) {
+    if (id === '@tensorflow/tfjs-node') {
+        return originalRequire.apply(this, ['@tensorflow/tfjs']);
+    }
+    return originalRequire.apply(this, arguments);
+};
 
-// Initialize the CPU backend
-tf.setBackend('cpu');
-
-import * as faceapi from '@vladmandic/face-api';
+import * as faceapi from '@vladmandic/face-api/dist/face-api.node.js';
 import * as canvas from '@napi-rs/canvas';
 import path from 'path';
 import fs from 'fs';
 import { IPlayer } from '../models/Player';
 
 // Monkey patch face-api for Node.js using napi-rs/canvas
-// This tells face-api how to "draw" and "read" images without a browser DOM
-// Monkey patch face-api for Node.js using napi-rs/canvas
-// Standard monkeyPatch can cause crashes if face-api creates a canvas with undefined dimensions
 const { Canvas, Image, ImageData } = canvas;
 
-class MockCanvas extends Canvas {
-    constructor(width?: number, height?: number) {
-        // @napi-rs/canvas crashes if width/height are not numbers
-        super(width || 1, height || 1);
-    }
-}
-
+// Important: do this as early as possible
 faceapi.env.monkeyPatch({
-    Canvas: MockCanvas as any,
+    Canvas: Canvas as any,
     Image: Image as any,
     ImageData: ImageData as any,
+    createCanvasElement: (w?: number, h?: number) => canvas.createCanvas(w || 1, h || 1) as any,
+    createImageElement: () => new Image() as any,
 });
+
+// Configure backend using faceapi's own tf instance
+const tf = faceapi.tf;
 
 let modelsLoaded = false;
 
 export async function loadFaceModels() {
     if (modelsLoaded) return;
 
-    // Ensure this path matches where your .json and .bin files are stored
-    // Using process.cwd() ensures it works both when running from root (ts-node) or dist (node dist/index.js)
-    const modelsPath = path.resolve(process.cwd(), 'public', 'face-models');
-
     try {
-        console.log(`DEBUG: Attempting to load models from: ${modelsPath}`);
+        // Explicitly set Node environment if it wasn't detected
+        if (!faceapi.env.isNodejs()) {
+            console.warn('DEBUG: Forcing Nodejs environment detection');
+            const env = faceapi.env as any;
+            if (env.setEnv && env.createNodejsEnv) {
+                env.setEnv(env.createNodejsEnv());
+            }
+        }
+
+        console.log(`DEBUG: faceapi.env.isNodejs(): ${faceapi.env.isNodejs()}`);
+
+        const modelsPath = path.resolve(process.cwd(), 'public', 'face-models');
+        console.log(`DEBUG: Target models path: ${modelsPath}`);
+
         if (!fs.existsSync(modelsPath)) {
-            // Fallback to relative path if cwd-based fails
-            const fallbackPath = path.join(__dirname, '..', '..', 'public', 'face-models');
+            // Try fallback path relative to this file
+            const fallbackPath = path.resolve(__dirname, '../../public/face-models');
             console.log(`DEBUG: CWD path failed, trying fallback: ${fallbackPath}`);
             if (!fs.existsSync(fallbackPath)) {
                 throw new Error(`Models directory not found at ${modelsPath} or ${fallbackPath}`);
             }
-            // If fallback works, use it
-            return await loadFromPath(fallbackPath);
+            await loadFromPath(fallbackPath);
+        } else {
+            await loadFromPath(modelsPath);
         }
-        await loadFromPath(modelsPath);
     } catch (error: any) {
         console.error('❌ Failed to load face models:', error.message || error);
+        if (error.stack) console.error(error.stack);
         throw new Error(`Facial recognition initialization failed: ${error.message}`);
     }
 }
 
 async function loadFromPath(modelsPath: string) {
     console.log(`Loading face-api models from: ${modelsPath}`);
-    await Promise.all([
-        faceapi.nets.ssdMobilenetv1.loadFromDisk(modelsPath),
-        faceapi.nets.faceLandmark68Net.loadFromDisk(modelsPath),
-        faceapi.nets.faceRecognitionNet.loadFromDisk(modelsPath)
-    ]);
+
+    // Ensure tf backend is ready
+    await (tf as any).setBackend('cpu');
+    await (tf as any).ready();
+    console.log(`DEBUG: TF Backend: ${(tf as any).getBackend()}`);
+
+    // Load models one by one with explicit checks
+    const nets = faceapi.nets as any;
+
+    console.log(' - Loading ssdMobilenetv1...');
+    await nets.ssdMobilenetv1.loadFromDisk(modelsPath);
+    console.log(' - Loaded ssdMobilenetv1');
+
+    console.log(' - Loading faceLandmark68Net...');
+    await nets.faceLandmark68Net.loadFromDisk(modelsPath);
+    console.log(' - Loaded faceLandmark68Net');
+
+    console.log(' - Loading faceRecognitionNet...');
+    await nets.faceRecognitionNet.loadFromDisk(modelsPath);
+    console.log(' - Loaded faceRecognitionNet');
+
     modelsLoaded = true;
-    console.log('✅ Face models loaded successfully');
+    console.log('✅ All face models loaded successfully');
 }
 
 export async function detectFaceDescriptor(imagePath: string): Promise<Float32Array | null> {
@@ -139,4 +167,52 @@ export function isDuplicateFace(newDescriptor: Float32Array | number[], existing
     }
 
     return false;
+}
+
+/**
+ * Performs background face verification for a player.
+ * 1. Detects face descriptor from passport photograph.
+ * 2. Checks for duplicates in the database.
+ * 3. Updates player status to 'Verified' or 'Rejected'.
+ */
+export async function runAsyncFaceVerification(player: IPlayer) {
+    console.log(`[Background Verification] Starting for player: ${player.firstName} ${player.surname} (${player._id})`);
+    
+    try {
+        if (!player.passportPhotographUrl) {
+            console.log('[Background Verification] No passport photograph found. Skipping.');
+            return;
+        }
+
+        const descriptor = await detectFaceDescriptor(player.passportPhotographUrl);
+
+        if (!descriptor) {
+            console.log('[Background Verification] No clear face detected. Keeping status as Pending.');
+            return;
+        }
+
+        // Fetch all OTHER players who have a faceDescriptor
+        const { Player } = require('../models/Player');
+        const existingPlayers = await Player.find({ 
+            _id: { $ne: player._id },
+            faceDescriptor: { $exists: true, $not: { $size: 0 } } 
+        });
+
+        if (isDuplicateFace(descriptor, existingPlayers)) {
+            console.log('[Background Verification] Duplicate face detected! Marking as Rejected.');
+            player.status = 'Rejected';
+            player.remarks = 'System auto-rejection: Duplicate face detected in registration.';
+        } else {
+            console.log('[Background Verification] Face is unique. Marking as Verified.');
+            player.status = 'Verified';
+        }
+
+        // Store the descriptor
+        player.faceDescriptor = Array.from(descriptor);
+        await player.save();
+        
+        console.log(`[Background Verification] Completed for ${player.firstName}. Final status: ${player.status}`);
+    } catch (error) {
+        console.error('[Background Verification] Error during processing:', error);
+    }
 }

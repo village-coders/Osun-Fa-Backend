@@ -1,0 +1,17 @@
+Testing face-api detection to reproduce canvas error...
+tf backend: cpu
+Loading models from: C:\Users\awwal\OneDrive\Desktop\Osun Fa Website\backend\public\face-models
+✅ Models loaded.
+Loading local image: C:\Users\awwal\OneDrive\Desktop\Osun Fa Website\frontend\public\bg-image.png
+Image loaded: 1792x2128
+Starting face detection...
+DEBUG: createCanvasElement called with undefinedxundefined -> using 1x1
+DEBUG: createCanvasElement called with undefinedxundefined -> using 1x1
+DEBUG: createCanvasElement called with undefinedxundefined -> using 1x1
+DEBUG: createCanvasElement called with undefinedxundefined -> using 1x1
+DEBUG: createCanvasElement called with undefinedxundefined -> using 1x1
+DEBUG: createCanvasElement called with undefinedxundefined -> using 1x1
+DEBUG: createCanvasElement called with undefinedxundefined -> using 1x1
+DEBUG: createCanvasElement called with undefinedxundefined -> using 1x1
+✅ Face detected successfully!
+Descriptor length: 128
