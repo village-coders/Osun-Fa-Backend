@@ -108,11 +108,15 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
         message: err.message || 'Internal Server Error',
         error: process.env.NODE_ENV === 'development' ? err : {}
     });
-});
-connectDB();
-// Start Server
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+})
+
+const startServer = async () => {
+    await connectDB();
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+};
+
+startServer();
 
 module.exports = app;
