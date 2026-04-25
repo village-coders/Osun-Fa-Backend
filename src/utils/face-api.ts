@@ -4,8 +4,9 @@
 const Module = require('module');
 const originalRequire = Module.prototype.require;
 Module.prototype.require = function (id: string) {
-    if (id === '@tensorflow/tfjs-node') {
-        return originalRequire.apply(this, ['@tensorflow/tfjs']);
+    // Redirect both tfjs-node AND tfjs to the CPU backend to save space and avoid missing module errors
+    if (id === '@tensorflow/tfjs-node' || id === '@tensorflow/tfjs') {
+        return originalRequire.apply(this, ['@tensorflow/tfjs-backend-cpu']);
     }
     return originalRequire.apply(this, arguments);
 };
