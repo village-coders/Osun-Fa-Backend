@@ -53,10 +53,10 @@ export const requireUserAuth = async (req: AuthRequest, res: Response, next: Nex
         res.status(401).json({ message: 'Not authorized to access this route' });
         return;
     }
-
+    
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET!) as jwt.JwtPayload;
-
+        
         // Determine which model to use based on the role in the token
         let Model: any = null;
         switch (decoded.role) {
@@ -66,7 +66,7 @@ export const requireUserAuth = async (req: AuthRequest, res: Response, next: Nex
             default:
                 res.status(401).json({ message: 'Invalid role in token' });
                 return;
-        }
+            }
 
         const user = await Model.findById(decoded.id).select('-passwordHash');
 

@@ -7,7 +7,7 @@ if (!fs.existsSync(tfFolder)) {
     fs.mkdirSync(tfFolder, { recursive: true });
 }
 
-const mocks = ['tfjs', 'tfjs-node'];
+const mocks = ['tfjs-node'];
 
 mocks.forEach(mockName => {
     const mockPath = path.join(tfFolder, mockName);

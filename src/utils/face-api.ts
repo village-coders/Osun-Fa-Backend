@@ -1,16 +1,16 @@
 // SHIM: vladmandic/face-api internally requires '@tensorflow/tfjs-node' which is not in our dependencies.
 // We shim require to redirect it to '@tensorflow/tfjs' which we have installed.
-// This must be done BEFORE any other imports that might trigger the internal require.
 const Module = require('module');
 const originalRequire = Module.prototype.require;
 Module.prototype.require = function (id: string) {
-    // Redirect both tfjs-node AND tfjs to the CPU backend to save space and avoid missing module errors
-    if (id === '@tensorflow/tfjs-node' || id === '@tensorflow/tfjs') {
-        return originalRequire.apply(this, ['@tensorflow/tfjs-backend-cpu']);
+    if (id === '@tensorflow/tfjs-node') {
+        return originalRequire.apply(this, ['@tensorflow/tfjs']);
     }
     return originalRequire.apply(this, arguments);
 };
 
+import * as tf from '@tensorflow/tfjs';
+import '@tensorflow/tfjs-backend-cpu';
 import * as faceapi from '@vladmandic/face-api/dist/face-api.node.js';
 import * as canvas from '@napi-rs/canvas';
 import path from 'path';
@@ -29,8 +29,7 @@ faceapi.env.monkeyPatch({
     createImageElement: () => new Image() as any,
 });
 
-// Configure backend using faceapi's own tf instance
-const tf = faceapi.tf;
+// Configure backend using tfjs instance
 
 let modelsLoaded = false;
 

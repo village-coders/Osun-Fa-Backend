@@ -10,7 +10,15 @@ const router = express.Router();
 // @access  Public
 router.get('/', async (req: Request, res: Response) => {
     try {
-        const news = await News.find().sort({ publishedAt: -1 });
+        const { all } = req.query;
+        let filter: any = { status: 'published' };
+
+        // If 'all=true' is requested, we show everything (intended for admin panel)
+        if (all === 'true') {
+            filter = {};
+        }
+
+        const news = await News.find(filter).sort({ publishedAt: -1 });
         res.json(news);
     } catch (error) {
         res.status(500).json({ message: 'Server Error' });
@@ -39,6 +47,14 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
             res.status(404).json({ message: 'News not found' });
             return;
         }
+
+        // Block access to drafts unless specifically requested (admin side)
+        const { all } = req.query;
+        if (news.status === 'draft' && all !== 'true') {
+            res.status(404).json({ message: 'News not found' });
+            return;
+        }
+
         res.json(news);
     } catch (error) {
         res.status(500).json({ message: 'Server Error' });
