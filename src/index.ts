@@ -81,6 +81,7 @@ const connectDB = async () => {
     }
 };
 
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/news', newsRoutes);
@@ -118,6 +119,7 @@ if (process.env.NODE_ENV !== 'production') {
         console.log(`Server running on port ${PORT}`);
     });
 }
+
 
 export default app;
 module.exports = app;
