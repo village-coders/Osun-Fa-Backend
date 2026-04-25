@@ -12,7 +12,7 @@ interface EmailOptions {
 export const sendEmail = async (options: EmailOptions) => {
     try {
         const data = await resend.emails.send({
-            from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+            from: process.env.EMAIL_FROM || 'OsunFA@theyoungpioneers.com',
             to: options.to,
             subject: options.subject,
             text: options.text || '',
