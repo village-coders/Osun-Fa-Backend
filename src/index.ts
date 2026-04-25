@@ -77,7 +77,7 @@ const connectDB = async () => {
         console.log('MongoDB connected successfully');
     } catch (err) {
         console.error('MongoDB connection error:', err);
-        process.exit(1);
+        // Do not process.exit(1) on Vercel
     }
 };
 
@@ -110,13 +110,13 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     });
 })
 
-const startServer = async () => {
-    await connectDB();
+connectDB();
+
+// Only listen locally, Vercel handles the invocation
+if (process.env.NODE_ENV !== 'production') {
     app.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
     });
-};
+}
 
-startServer();
-
-module.exports = app;
+export default app;
