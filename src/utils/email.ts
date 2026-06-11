@@ -31,12 +31,12 @@ export const sendVerificationEmail = async (email: string, token: string, role: 
     const baseUrl = process.env.API_URL || `http://localhost:${process.env.PORT || 4000}`;
     const verificationUrl = `${baseUrl}/api/portal-auth/verify-email?token=${token}&role=${role}`;
 
-    const subject = 'Verify your OSFA Portal Account';
+    const subject = 'Verify your Osun FA Portal Account';
     const html = `
         <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-            <h2 style="color: #025928; text-align: center;">Welcome to OSFA Portal</h2>
+            <h2 style="color: #025928; text-align: center;">Welcome to Osun FA Portal</h2>
             <p>Hello,</p>
-            <p>Thank you for registering on the OSFA Portal. Please verify your email address to activate your account.</p>
+            <p>Thank you for registering on the Osun FA Portal. Please verify your email address to activate your account.</p>
             <div style="text-align: center; margin: 30px 0;">
                 <a href="${verificationUrl}" style="background-color: #00ff88; color: #013618; padding: 15px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Verify Email Address</a>
             </div>
