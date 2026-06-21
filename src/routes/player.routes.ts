@@ -63,7 +63,8 @@ router.post('/portal-register', requireUserAuth, requireApprovedClub, upload.any
         const player = new Player({
             ...playerData,
             clubId: req.user._id,
-            currentClubName: req.user.clubName // Sync the name from the club profile
+            currentClubName: req.user.clubName, // Sync the name from the club profile
+            status: 'Approved'
         });
 
         const savedPlayer = await player.save();
