@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { Club } from '../models/Club';
 import { upload } from '../middleware/upload.middleware';
 import { requireAuth, requireUserAuth, AuthRequest } from '../middleware/auth.middleware';
+import { sendApprovalEmail } from '../utils/email';
 const router = express.Router();
 
 // @route   PUT /api/clubs/update-profile
@@ -107,6 +108,14 @@ router.put('/:id/status', requireAuth, async (req: AuthRequest, res: Response): 
         if (!club) {
             res.status(404).json({ message: 'Club not found' });
             return;
+        }
+
+        if (status === 'Approved' && club.email) {
+            try {
+                await sendApprovalEmail(club.email, 'club', club.clubName || club.name || 'Club Representative');
+            } catch (err) {
+                console.error('Failed to send approval email', err);
+            }
         }
 
         res.json(club);

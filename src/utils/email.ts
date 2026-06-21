@@ -53,3 +53,30 @@ export const sendVerificationEmail = async (email: string, token: string, role: 
         html
     });
 };
+
+export const sendApprovalEmail = async (email: string, role: string, name: string) => {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const portalUrl = `${frontendUrl}/portal/login`;
+
+    const subject = `Your Osun FA ${role.charAt(0).toUpperCase() + role.slice(1)} Account is Approved!`;
+    const html = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+            <h2 style="color: #025928; text-align: center;">Account Approved</h2>
+            <p>Hello ${name},</p>
+            <p>Great news! Your ${role} registration on the Osun FA Portal has been officially <strong>Approved</strong>.</p>
+            <p>You can now log in to the portal to access your dashboard and manage your profile.</p>
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="${portalUrl}" style="background-color: #00ff88; color: #013618; padding: 15px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Login to Portal</a>
+            </div>
+            <p>If you have any questions, please contact the Osun FA administration.</p>
+            <hr style="border: none; border-top: 1px solid #eee;" />
+            <p style="font-size: 12px; color: #999;">Osun State Football Association</p>
+        </div>
+    `;
+
+    return sendEmail({
+        to: email,
+        subject,
+        html
+    });
+};

@@ -54,6 +54,37 @@ router.put('/:id', requireAuth, upload.single('logo'), async (req: Request, res:
     }
 });
 
+// @route   POST /api/competitions/:id/enroll
+// @desc    Enroll authenticated club into competition
+// @access  Private (Club Portal)
+router.post('/:id/enroll', requireAuth, async (req: Request, res: Response): Promise<void> => {
+    try {
+        const competition = await Competition.findById(req.params.id);
+        if (!competition) {
+            res.status(404).json({ message: 'Competition not found' });
+            return;
+        }
+
+        if (competition.registrationStatus !== 'open') {
+            res.status(400).json({ message: 'Registration is closed for this competition' });
+            return;
+        }
+
+        // Add club id to enrolledClubs if not already present
+        // Note: req.user._id comes from requireAuth middleware
+        const clubId = (req as any).user._id;
+        
+        if (!competition.enrolledClubs.includes(clubId)) {
+            competition.enrolledClubs.push(clubId);
+            await competition.save();
+        }
+
+        res.json({ message: 'Successfully enrolled', competition });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
 // @route   DELETE /api/competitions/:id
 // @desc    Delete a competition
 // @access  Private (Admin)
