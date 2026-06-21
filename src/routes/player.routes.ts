@@ -2,7 +2,6 @@ import express, { Request, Response } from 'express';
 import { Player } from '../models/Player';
 import { upload } from '../middleware/upload.middleware';
 import { requireAuth, requireUserAuth, requireApprovedClub, AuthRequest } from '../middleware/auth.middleware';
-import { detectFaceDescriptor, isDuplicateFace, runAsyncFaceVerification } from '../utils/face-api';
 import { deleteFromCloudinary } from '../utils/cloudinary';
 
 const router = express.Router();
@@ -24,12 +23,7 @@ router.post('/register', upload.any(), async (req: Request, res: Response): Prom
         const player = new Player(playerData);
         const savedPlayer = await player.save();
 
-        // 1. Trigger background face verification if a photo exists
-        if (savedPlayer.passportPhotographUrl) {
-            runAsyncFaceVerification(savedPlayer).catch(err =>
-                console.error('[Background Verification] Trigger error:', err)
-            );
-        }
+
 
         res.status(201).json(savedPlayer);
     } catch (error) {
@@ -74,12 +68,7 @@ router.post('/portal-register', requireUserAuth, requireApprovedClub, upload.any
 
         const savedPlayer = await player.save();
 
-        // 1. Trigger background face verification if a photo exists
-        if (savedPlayer.passportPhotographUrl) {
-            runAsyncFaceVerification(savedPlayer).catch(err =>
-                console.error('[Background Verification Portal] Trigger error:', err)
-            );
-        }
+
 
         res.status(201).json(savedPlayer);
     } catch (error) {
