@@ -108,7 +108,7 @@ router.get('/verify-email', async (req: Request, res: Response): Promise<void> =
 
         // Redirect to frontend portal setup loop / login
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-        res.redirect(`${frontendUrl}/portal/verify?status=success`);
+        res.redirect(`${frontendUrl}/portal/verify?status=success&role=${role}`);
     } catch (error) {
         console.error('Email Verification Error:', error);
         res.status(500).json({ message: 'Server error during email verification' });
