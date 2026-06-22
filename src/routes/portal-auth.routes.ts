@@ -42,8 +42,12 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
-        const existingUser = await Model.findOne({ email });
-        if (existingUser) {
+        // Check uniqueness across ALL roles
+        const existingClub = await Club.findOne({ email });
+        const existingCoach = await Coach.findOne({ email });
+        const existingReferee = await Referee.findOne({ email });
+
+        if (existingClub || existingCoach || existingReferee) {
             res.status(400).json({ message: 'User with this email already exists' });
             return;
         }
@@ -127,11 +131,21 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
-        // We type assert to any here since typescript doesn't easily infer shared interface methods via the generic static Model
-        const user: any = await Model.findOne({ email });
+        // Check if the user exists in ANY collection, but enforce role matching
+        const existingClub = await Club.findOne({ email });
+        const existingCoach = await Coach.findOne({ email });
+        const existingReferee = await Referee.findOne({ email });
+
+        let user: any = existingClub || existingCoach || existingReferee;
 
         if (!user) {
             res.status(401).json({ message: 'Invalid credentials' });
+            return;
+        }
+
+        // STRICT ROLE CHECK: ensure the requested login role matches the user's actual role in DB
+        if (user.role !== role) {
+            res.status(401).json({ message: `Access denied: This email is registered as a ${user.role}, not as a ${role}` });
             return;
         }
 
