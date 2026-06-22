@@ -8,6 +8,7 @@ export interface ICompetition extends Document {
     status: 'upcoming' | 'ongoing' | 'completed';
     description?: string;
     logoUrl?: string;
+    registrationLink?: string;
     registrationStatus: 'open' | 'closed';
     enrolledClubs: mongoose.Types.ObjectId[];
 }
@@ -21,6 +22,7 @@ const competitionSchema = new Schema<ICompetition>(
         status: { type: String, enum: ['upcoming', 'ongoing', 'completed'], default: 'upcoming' },
         description: { type: String },
         logoUrl: { type: String },
+        registrationLink: { type: String },
         registrationStatus: { type: String, enum: ['open', 'closed'], default: 'closed' },
         enrolledClubs: [{ type: Schema.Types.ObjectId, ref: 'Club' }]
     },

@@ -69,17 +69,31 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// MongoDB Connection
+let isDbConnected = false;
 const connectDB = async () => {
+    if (isDbConnected || mongoose.connection.readyState >= 1) {
+        isDbConnected = true;
+        return;
+    }
     try {
-        const mongoURI = process.env.MONGO_URI!;
+        const mongoURI = process.env.MONGO_URI;
+        if (!mongoURI) {
+            console.error('MONGO_URI is not defined in environment variables');
+            return;
+        }
         await mongoose.connect(mongoURI);
+        isDbConnected = true;
         console.log('MongoDB connected successfully');
     } catch (err) {
         console.error('MongoDB connection error:', err);
-        // Do not process.exit(1) on Vercel
     }
 };
+
+// Ensure database connection before handling any requests
+app.use(async (req, res, next) => {
+    await connectDB();
+    next();
+});
 
 
 // Routes

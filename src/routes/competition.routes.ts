@@ -16,6 +16,21 @@ router.get('/', async (req: Request, res: Response) => {
         res.status(500).json({ message: 'Server Error' });
     }
 });
+// @route   GET /api/competitions/:id
+// @desc    Get a single competition
+// @access  Public
+router.get('/:id', async (req: Request, res: Response): Promise<void> => {
+    try {
+        const competition = await Competition.findById(req.params.id);
+        if (!competition) {
+            res.status(404).json({ message: 'Competition not found' });
+            return;
+        }
+        res.json(competition);
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
 
 // @route   POST /api/competitions
 // @desc    Create a competition
