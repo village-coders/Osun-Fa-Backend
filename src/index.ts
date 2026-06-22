@@ -45,9 +45,10 @@ app.use(compression()); // Compress responses
 app.use(limiter); // Apply rate limiter to all requests
 
 // CORS configuration for production
-const allowedOrigin = process.env.FRONTEND_URL || '*';
 app.use(cors({
-    origin: allowedOrigin,
+    origin: (origin, callback) => {
+        callback(null, true); // Reflect the requesting origin
+    },
     credentials: true,
 }));
 
