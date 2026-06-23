@@ -3,7 +3,16 @@ import { Club } from '../models/Club';
 import { upload } from '../middleware/upload.middleware';
 import { requireAuth, requireUserAuth, AuthRequest } from '../middleware/auth.middleware';
 import { sendApprovalEmail } from '../utils/email';
+import mongoose from 'mongoose';
+
 const router = express.Router();
+
+function generateSlug(name: string): string {
+    return name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)+/g, '');
+}
 
 // @route   PUT /api/clubs/update-profile
 // @desc    Update a club profile after initial registration
@@ -34,6 +43,19 @@ router.put(
                 clubData.applicationId = `OSFA-CLUB-${year}-${random}`;
                 clubData.dateSubmitted = new Date();
                 clubData.status = 'Pending';
+            }
+
+            // Generate slug if name is provided
+            const finalName = clubData.clubName || clubData.name;
+            if (finalName && (!currentClub || !currentClub.slug || currentClub.clubName !== finalName)) {
+                let baseSlug = generateSlug(finalName);
+                let slug = baseSlug;
+                let counter = 1;
+                while (await Club.findOne({ slug, _id: { $ne: req.user._id || req.user.id } })) {
+                    slug = `${baseSlug}-${counter}`;
+                    counter++;
+                }
+                clubData.slug = slug;
             }
 
             // Update the existing user (Club document) with the profile data
@@ -81,6 +103,31 @@ router.get('/public', async (req: Request, res: Response) => {
         const clubs = await Club.find().sort({ createdAt: -1 });
         console.log(clubs);
         res.json(clubs);
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// @route   GET /api/clubs/public/:slugOrId
+// @desc    Get a single registered club by slug or ID
+// @access  Public
+router.get('/public/:slugOrId', async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { slugOrId } = req.params;
+        let query = {};
+        
+        if (mongoose.Types.ObjectId.isValid(slugOrId as string)) {
+            query = { $or: [{ _id: slugOrId }, { slug: slugOrId }] };
+        } else {
+            query = { slug: slugOrId };
+        }
+
+        const club = await Club.findOne(query);
+        if (!club) {
+            res.status(404).json({ message: 'Club not found' });
+            return;
+        }
+        res.json(club);
     } catch (error) {
         res.status(500).json({ message: 'Server Error' });
     }

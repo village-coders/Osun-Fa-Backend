@@ -108,6 +108,21 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
     }
 });
 
+// @route   GET /api/players/public/club/:clubId
+// @desc    Get public players for a specific club
+// @access  Public
+router.get('/public/club/:clubId', async (req: Request, res: Response) => {
+    try {
+        const players = await Player.find({ 
+            clubId: req.params.clubId,
+            status: { $in: ['Approved', 'Verified'] } 
+        }).sort({ createdAt: -1 });
+        res.json(players);
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
 // @route   PUT /api/players/:id/status
 // @desc    Update player registration status
 // @access  Private (Admin)

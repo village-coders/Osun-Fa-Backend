@@ -11,6 +11,7 @@ export interface IClub extends Document {
 
     name?: string;
     clubName?: string;
+    slug?: string;
     shortName?: string;
     shortNameNickname?: string;
     yearOfEstablishment?: string;
@@ -93,6 +94,7 @@ const clubSchema = new Schema<IClub>(
 
         name: { type: String },
         clubName: { type: String }, // Legacy
+        slug: { type: String, unique: true, sparse: true },
         shortName: { type: String },
         shortNameNickname: { type: String },
         yearOfEstablishment: { type: String },
